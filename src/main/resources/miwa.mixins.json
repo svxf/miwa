@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "gg.cat.miwa.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+  ],
+  "client": [
+    "KeyBindingMixins",
+    "MinecraftClientMixins"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

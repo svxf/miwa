@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "miwa",
+  "version": "${version}",
+  "name": "miwa",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/miwa/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "gg.cat.miwa.Miwa"
+    ]
+  },
+  "mixins": [
+    "miwa.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
