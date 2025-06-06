@@ -39,7 +39,7 @@ public class MenuScreen extends Screen {
     private TextFieldWidget saveNameField;
     private List<String> savesList;
     private int selectedSaveIndex = -1;
-    private String currentTab = "Save"; // Default tab is Save
+    private String currentTab = "Save";
     private final Gson gson = new Gson();
 
     public MenuScreen() {
@@ -102,6 +102,7 @@ public class MenuScreen extends Screen {
     }
 
     private boolean isRedTabActive = true;
+    private boolean isPurpleTabActive = false;
 
     private void setupLoadTab() {
         loadSaves();
@@ -110,6 +111,7 @@ public class MenuScreen extends Screen {
         this.addDrawableChild(new ButtonWidget(
                 6, 18 + 12, 60, 18, Text.of("Red"), button -> {
             isRedTabActive = true;
+            isPurpleTabActive = false;
             updateSaveButtons();
         }));
 
@@ -117,6 +119,15 @@ public class MenuScreen extends Screen {
         this.addDrawableChild(new ButtonWidget(
                 72, 18 + 12, 60, 18, Text.of("Purple"), button -> {
             isRedTabActive = false;
+            isPurpleTabActive = true;
+            updateSaveButtons();
+        }));
+
+        // Other Tab Button
+        this.addDrawableChild(new ButtonWidget(
+                138, 18 + 12, 60, 18, Text.of("Other"), button -> {
+            isRedTabActive = false;
+            isPurpleTabActive = false;
             updateSaveButtons();
         }));
 
@@ -142,10 +153,18 @@ public class MenuScreen extends Screen {
         saveButtons.clear();
 
         // Get the active save list
-        List<String> activeSaves = isRedTabActive ? redSaves : purpleSaves;
+        List<String> activeSaves;
+        if (isRedTabActive) {
+            activeSaves = redSaves;
+        } else if (isPurpleTabActive) {
+            activeSaves = purpleSaves;
+        } else {
+            activeSaves = otherSaves;
+        }
 
-        // Add buttons for active saves
-        int yOffset = 18 + 12 + 22; // Adjust yOffset to avoid overlapping with tabs
+        this.savesList = activeSaves;
+
+        int yOffset = 18 + 12 + 22;
         for (int i = 0; i < activeSaves.size(); i++) {
             String saveName = activeSaves.get(i);
             int index = i;
@@ -296,6 +315,7 @@ public class MenuScreen extends Screen {
 
     private List<String> redSaves = new ArrayList<>();
     private List<String> purpleSaves = new ArrayList<>();
+    private List<String> otherSaves = new ArrayList<>();
 
     private void loadSaves() {
         File saveDir = new File(mc.runDirectory, "miwa/saves");
@@ -306,6 +326,7 @@ public class MenuScreen extends Screen {
 
         redSaves.clear();
         purpleSaves.clear();
+        otherSaves.clear();
 
         for (File file : saveDir.listFiles()) {
             if (file.getName().endsWith(".json")) {
@@ -314,13 +335,15 @@ public class MenuScreen extends Screen {
                     redSaves.add(saveName);
                 } else if (saveName.startsWith("purple_")) {
                     purpleSaves.add(saveName);
+                } else {
+                    otherSaves.add(saveName);
                 }
             }
         }
     }
 
     private void openSelectedSave() {
-        if (selectedSaveIndex < 0 || selectedSaveIndex >= savesList.size()) {
+        if (savesList == null || selectedSaveIndex < 0 || selectedSaveIndex >= savesList.size()) {
             mc.player.sendMessage(Text.of("No save selected."), false);
             return;
         }
