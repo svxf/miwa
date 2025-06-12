@@ -1,11 +1,8 @@
 package gg.cat.miwa.parkour;
 
-import gg.cat.miwa.EventHandler;
 import gg.cat.miwa.Miwa;
 import gg.cat.miwa.render.GraphicsHelper;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.input.Input;
-import net.minecraft.client.input.KeyboardInput;
 
 import java.util.List;
 
@@ -14,6 +11,10 @@ public class PlaybackSession implements ParkourSession {
     private final List<Frame> recordFrames;
     private int currentFrameIndex = 0;
     private boolean isActive = false;
+
+    private boolean lerpingToStart = false;
+    private int lerpTicks = 0;
+    private final int maxLerpTicks = 5;
 
     public PlaybackSession(List<Frame> recordFrames) {
         this.recordFrames = recordFrames;
@@ -41,17 +42,45 @@ public class PlaybackSession implements ParkourSession {
     public void onClientTick() {
         if (mc.isPaused())
             return;
-        if (isActive) {
-            playBackInput();
+
+        if (!isActive) return;
+
+        if (lerpingToStart) {
+            lerpTicks++;
+            if (lerpTicks >= maxLerpTicks) {
+                lerpingToStart = false;
+                Miwa.LOGGER.info("Finished lerping to start frame.");
+            }
+            return;
         }
+
+        playBackInput();
     }
 
     @Override
     public void onRenderTick() {
-        if (mc.isPaused() || currentFrameIndex >= recordFrames.size() || currentFrameIndex <= 0)
-            return;
+        if (mc.isPaused() || mc.player == null || !isActive) return;
 
         float partialTicks = mc.getRenderTickCounter().getTickDelta(false);
+
+        if (lerpingToStart) {
+            if (recordFrames.isEmpty()) {
+                cleanUp();
+                return;
+            }
+
+            Frame first = recordFrames.get(0);
+            float t = (lerpTicks + partialTicks) / maxLerpTicks;
+
+            float lerpedYaw = GraphicsHelper.lerpAngle(t, mc.player.prevYaw, first.yaw);
+            float lerpedPitch = GraphicsHelper.lerp(t, mc.player.prevPitch, first.pitch);
+
+            mc.player.setYaw(lerpedYaw);
+            mc.player.setPitch(lerpedPitch);
+            return;
+        }
+
+        if (currentFrameIndex >= recordFrames.size() || currentFrameIndex <= 0) return;
 
         Frame currentFrame = recordFrames.get(currentFrameIndex);
         Frame previousFrame = recordFrames.get(currentFrameIndex - 1);
@@ -78,11 +107,13 @@ public class PlaybackSession implements ParkourSession {
     public void startPlayback() {
         isActive = true;
         currentFrameIndex = 0;
+        lerpingToStart = true;
+        lerpTicks = 0;
         Miwa.LOGGER.info("Started playback.");
     }
 
     private void playBackInput() {
-        if (currentFrameIndex >= recordFrames.size()) {
+        if ((currentFrameIndex >= recordFrames.size()) || mc.player == null || mc.player.isDead()) {
             cleanUp();
             return;
         }
