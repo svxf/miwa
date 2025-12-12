@@ -25,7 +25,6 @@ public class RecordingSession implements ParkourSession {
     }
 
     Path tempDir = Path.of(MinecraftClient.getInstance().runDirectory.getPath(), "miwa");
-    Path tempScreenshotPath = tempDir.resolve("temp_screenshot.png");
     private void takeTempScreenshot() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null || client.getFramebuffer() == null) {
@@ -34,8 +33,13 @@ public class RecordingSession implements ParkourSession {
 
         tempDir.toFile().mkdirs();
 
-        ScreenshotRecorder.saveScreenshot(tempDir.toFile(), "temp_screenshot.png", client.getFramebuffer(), message -> {
-        });
+        ScreenshotRecorder.saveScreenshot(
+                tempDir.toFile(),
+                "temp_screenshot.png",
+                client.getFramebuffer(),
+                1,
+                message -> {}
+        );
     }
 
     @Override

@@ -9,7 +9,7 @@ public class Miwa implements ClientModInitializer {
 
     public static final String MOD_NAME = "Miwa";
     public static final String MOD_ID = "miwa";
-    public static final String MOD_VERSION = "1.0.1-1.21";
+    public static final String MOD_VERSION = "1.0.1-1.21.4";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_NAME);
 
     @Override

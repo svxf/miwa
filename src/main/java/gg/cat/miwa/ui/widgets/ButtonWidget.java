@@ -17,6 +17,10 @@ public class ButtonWidget extends ClickableWidget {
         this.onPress = onPress;
     }
 
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
     @Override
     public void onClick(double mouseX, double mouseY) {
         if (this.enabled && this.onPress != null) {

@@ -46,14 +46,6 @@ public class EventHandler {
     public static void onHandleInputEvents() {
         GameOptions gameSettings = mc.options;
 
-//        if (session instanceof PlaybackSession && session.isActive()) {
-//            mc.crosshairTarget = hitResult != null ? hitResult : mc.crosshairTarget;
-//            attackHandler.modifyKeyBindingState(gameSettings.attackKey);
-//            useHandler.modifyKeyBindingState(gameSettings.useKey);
-//
-//            return;
-//        }
-
         hitResult = mc.crosshairTarget != null && mc.crosshairTarget instanceof BlockHitResult ? (BlockHitResult) mc.crosshairTarget : null;
         attackHandler.capturePress(gameSettings.attackKey);
         useHandler.capturePress(gameSettings.useKey);

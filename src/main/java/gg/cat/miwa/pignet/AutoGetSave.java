@@ -230,7 +230,7 @@ public class AutoGetSave {
 //                                mc.world.setBlockState(relativeBlockPos, Blocks.GOLD_BLOCK.getDefaultState());
 //                            });
 
-                            mc.player.sendMessage(Text.of("Matched pattern: " + entry.getKey() + " | Save File: " + pattern.saveFile));
+                            mc.player.sendMessage(Text.of("Matched pattern: " + entry.getKey() + " | Save File: " + pattern.saveFile), false);
                             loadSaves(pattern.saveFile);
                             return matchedBlocks;
                         }

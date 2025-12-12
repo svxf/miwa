@@ -2,23 +2,24 @@ package gg.cat.miwa.ui;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import gg.cat.miwa.EventHandler;
 import gg.cat.miwa.Miwa;
-import gg.cat.miwa.parkour.PlaybackSession;
 import gg.cat.miwa.parkour.Recording;
 import gg.cat.miwa.ui.widgets.ButtonWidget;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureManager;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableTextContent;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -43,7 +44,7 @@ public class MenuScreen extends Screen {
     private final Gson gson = new Gson();
 
     public MenuScreen() {
-        super(Text.of("Parkour Recorder"));
+        super(Text.of("miwa"));
     }
 
     @Override
@@ -107,7 +108,6 @@ public class MenuScreen extends Screen {
     private void setupLoadTab() {
         loadSaves();
 
-        // Red Tab Button
         this.addDrawableChild(new ButtonWidget(
                 6, 18 + 12, 60, 18, Text.of("Red"), button -> {
             isRedTabActive = true;
@@ -115,7 +115,6 @@ public class MenuScreen extends Screen {
             updateSaveButtons();
         }));
 
-        // Purple Tab Button
         this.addDrawableChild(new ButtonWidget(
                 72, 18 + 12, 60, 18, Text.of("Purple"), button -> {
             isRedTabActive = false;
@@ -123,7 +122,6 @@ public class MenuScreen extends Screen {
             updateSaveButtons();
         }));
 
-        // Other Tab Button
         this.addDrawableChild(new ButtonWidget(
                 138, 18 + 12, 60, 18, Text.of("Other"), button -> {
             isRedTabActive = false;
@@ -131,68 +129,127 @@ public class MenuScreen extends Screen {
             updateSaveButtons();
         }));
 
-        // Initialize save buttons
         updateSaveButtons();
     }
 
     private List<ButtonWidget> saveButtons = new ArrayList<>();
     private ButtonWidget openButton = null;
 
-    private void updateSaveButtons() {
-        // Remove existing save buttons
-        for (ButtonWidget button : saveButtons) {
-            this.remove(button);
-        }
+    private int currentPage = 0;
+    private ButtonWidget prevPageButton;
+    private ButtonWidget nextPageButton;
+    private final int SAVES_PER_PAGE = 15;
 
-        if (openButton != null)
-        {
+    private void updateSaveButtons() {
+        // Clear old buttons
+        for (ButtonWidget b : saveButtons) this.remove(b);
+        saveButtons.clear();
+
+        if (openButton != null) {
             this.remove(openButton);
             openButton = null;
         }
-
-        saveButtons.clear();
-
-        // Get the active save list
-        List<String> activeSaves;
-        if (isRedTabActive) {
-            activeSaves = redSaves;
-        } else if (isPurpleTabActive) {
-            activeSaves = purpleSaves;
-        } else {
-            activeSaves = otherSaves;
+        if (prevPageButton != null) {
+            this.remove(prevPageButton);
+            prevPageButton = null;
         }
+        if (nextPageButton != null) {
+            this.remove(nextPageButton);
+            nextPageButton = null;
+        }
+
+        // Pick the active list
+        List<String> activeSaves = isRedTabActive ? redSaves :
+                isPurpleTabActive ? purpleSaves :
+                        otherSaves;
 
         this.savesList = activeSaves;
 
+        // Number of pages
+        int totalPages = (int) Math.ceil(activeSaves.size() / (double) SAVES_PER_PAGE);
+        if (currentPage >= totalPages) currentPage = totalPages - 1;
+        if (currentPage < 0) currentPage = 0;
+
+        // Starting/ending indexes for this page
+        int start = currentPage * SAVES_PER_PAGE;
+        int end = Math.min(start + SAVES_PER_PAGE, activeSaves.size());
+
+        // Layout buttons
         int yOffset = 18 + 12 + 22;
-        for (int i = 0; i < activeSaves.size(); i++) {
-            String saveName = activeSaves.get(i);
-            int index = i;
 
-            ButtonWidget saveButton = new ButtonWidget(
-                    6, yOffset, 200, 18, Text.of(saveName), button -> {
-                for (ButtonWidget b : saveButtons) {
-                    b.setSelected(false);
-                }
+        for (int i = start; i < end; i++) {
+            int indexOnPage = i - start;
 
-                selectedSaveIndex = index;
-                button.setSelected(true);
-
-                updateOpenButtonPosition(button);
-                updatePreview(saveName);
-            });
-
+            ButtonWidget saveButton = getButtonWidget(activeSaves, i, yOffset + indexOnPage * 22);
             this.addDrawableChild(saveButton);
             saveButtons.add(saveButton);
-            yOffset += 22;
         }
 
-        openButton = new ButtonWidget(this.width / 2 - 50, yOffset + 10, 100, 20, Text.of("Open"), button -> {
-            openSelectedSave();
-        });
-        openButton.visible = false;
+        // Add Open button
+        int bottomY = yOffset + (end - start) * 22 + 10;
 
+        openButton = new ButtonWidget(
+                this.width / 2 - 50,
+                bottomY,
+                100,
+                20,
+                Text.of("Open"),
+                b -> openSelectedSave()
+        );
+        openButton.visible = false;
         this.addDrawableChild(openButton);
+
+        // --- PAGE BUTTONS ---
+        int buttonY = 385;
+
+        prevPageButton = new ButtonWidget(
+                6,
+                buttonY,
+                20,
+                20,
+                Text.of("<"),
+                button -> {
+                    if (currentPage > 0) {
+                        currentPage--;
+                        updateSaveButtons();
+                    }
+                }
+        );
+        prevPageButton.setEnabled(currentPage > 0);
+        this.addDrawableChild(prevPageButton);
+
+        nextPageButton = new ButtonWidget(
+                6 + 20 + 5,
+                buttonY,
+                20,
+                20,
+                Text.of(">"),
+                button -> {
+                    if (currentPage < totalPages - 1) {
+                        currentPage++;
+                        updateSaveButtons();
+                    }
+                }
+        );
+        nextPageButton.setEnabled(currentPage < totalPages - 1);
+        this.addDrawableChild(nextPageButton);
+    }
+
+    private @NotNull ButtonWidget getButtonWidget(List<String> activeSaves, int i, int yOffset) {
+        String saveName = activeSaves.get(i);
+
+        return new ButtonWidget(
+                6, yOffset, 200, 18, Text.of(saveName), button -> {
+            for (ButtonWidget b : saveButtons) {
+                b.setSelected(false);
+            }
+
+            selectedSaveIndex = i;
+            button.setSelected(true);
+
+            updateOpenButtonPosition(button);
+            updatePreview(saveName);
+        });
     }
 
     private void updateOpenButtonPosition(ButtonWidget selectedButton) {
@@ -214,7 +271,7 @@ public class MenuScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float partialTicks) {
-        this.renderBackground(context, mouseX, mouseY, partialTicks);
+//        this.renderBackground(context, mouseX, mouseY, partialTicks);
         super.render(context, mouseX, mouseY, partialTicks);
 
         if (Objects.equals(currentTab, "Load")) {
@@ -226,7 +283,18 @@ public class MenuScreen extends Screen {
             context.fill(previewXStart, previewYStart, previewXEnd, previewYEnd, 0x90000000);
 
             if (currentPreviewImage != null) {
-                context.drawTexture(currentPreviewImage, previewXStart + 4, previewYStart + 4, 0, 0, previewXEnd - previewXStart - 8, previewYEnd - previewYStart - 8, previewXEnd - previewXStart, previewYEnd - previewYStart);
+                context.drawTexture(
+                        RenderPipelines.GUI_TEXTURED,
+                        currentPreviewImage,
+                        previewXStart + 4,
+                        previewYStart + 4,
+                        0f,
+                        0f,
+                        previewXEnd - previewXStart - 8,
+                        previewYEnd - previewYStart - 8,
+                        previewXEnd - previewXStart,
+                        previewYEnd - previewYStart
+                );
             }
         }
     }
@@ -243,21 +311,17 @@ public class MenuScreen extends Screen {
                 for (int x = 0; x < bufferedImage.getWidth(); x++) {
                     for (int y = 0; y < bufferedImage.getHeight(); y++) {
                         int argb = bufferedImage.getRGB(x, y);
-
-                        int alpha = (argb >> 24) & 0xFF;
-                        int red = (argb >> 16) & 0xFF;
-                        int green = (argb >> 8) & 0xFF;
-                        int blue = argb & 0xFF;
-
-                        int correctedColor = (alpha << 24) | (blue << 16) | (green << 8) | red;
-                        nativeImage.setColor(x, y, correctedColor);
+                        nativeImage.setColorArgb(x, y, argb);
                     }
                 }
 
                 TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
                 Identifier textureId = Identifier.of("miwa", "saves/" + saveName);
 
-                textureManager.registerTexture(textureId, new NativeImageBackedTexture(nativeImage));
+                textureManager.registerTexture(
+                        textureId,
+                        new NativeImageBackedTexture(() -> "miwa_preview_image", nativeImage)
+                );
 
                 return textureId;
             } catch (IOException e) {
@@ -328,7 +392,7 @@ public class MenuScreen extends Screen {
         purpleSaves.clear();
         otherSaves.clear();
 
-        for (File file : saveDir.listFiles()) {
+        for (File file : Objects.requireNonNull(saveDir.listFiles())) {
             if (file.getName().endsWith(".json")) {
                 String saveName = file.getName().replace(".json", "");
                 if (saveName.startsWith("red_")) {

@@ -1,8 +1,11 @@
 package gg.cat.miwa.parkour;
 
 import gg.cat.miwa.Miwa;
+import gg.cat.miwa.mixin.OptionsMixin;
 import gg.cat.miwa.render.GraphicsHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.SimpleOption;
 
 import java.util.List;
 
@@ -15,6 +18,8 @@ public class PlaybackSession implements ParkourSession {
     private boolean lerpingToStart = false;
     private int lerpTicks = 0;
     private final int maxLerpTicks = 5;
+
+    private boolean sneakToggledBackup = false;
 
     public PlaybackSession(List<Frame> recordFrames) {
         this.recordFrames = recordFrames;
@@ -61,7 +66,7 @@ public class PlaybackSession implements ParkourSession {
     public void onRenderTick() {
         if (mc.isPaused() || mc.player == null || !isActive) return;
 
-        float partialTicks = mc.getRenderTickCounter().getTickDelta(false);
+        float partialTicks = mc.getRenderTickCounter().getTickProgress(false);
 
         if (lerpingToStart) {
             if (recordFrames.isEmpty()) {
@@ -72,8 +77,8 @@ public class PlaybackSession implements ParkourSession {
             Frame first = recordFrames.get(0);
             float t = (lerpTicks + partialTicks) / maxLerpTicks;
 
-            float lerpedYaw = GraphicsHelper.lerpAngle(t, mc.player.prevYaw, first.yaw);
-            float lerpedPitch = GraphicsHelper.lerp(t, mc.player.prevPitch, first.pitch);
+            float lerpedYaw = GraphicsHelper.lerpAngle(t, mc.player.lastYaw, first.yaw);
+            float lerpedPitch = GraphicsHelper.lerp(t, mc.player.lastPitch, first.pitch);
 
             mc.player.setYaw(lerpedYaw);
             mc.player.setPitch(lerpedPitch);
@@ -109,6 +114,8 @@ public class PlaybackSession implements ParkourSession {
         currentFrameIndex = 0;
         lerpingToStart = true;
         lerpTicks = 0;
+        sneakToggledBackup = ((OptionsMixin) mc.options).getSneakToggled().getValue();
+        ((OptionsMixin) mc.options).getSneakToggled().setValue(false);
         Miwa.LOGGER.info("Started playback.");
     }
 
@@ -117,6 +124,11 @@ public class PlaybackSession implements ParkourSession {
             cleanUp();
             return;
         }
+
+        GameOptions options = MinecraftClient.getInstance().options;
+        OptionsMixin accessor = (OptionsMixin) (Object) options;
+        SimpleOption<Boolean> opt = accessor.getSneakToggled();
+        opt.setValue(false);
 
         Frame frame = recordFrames.get(currentFrameIndex++);
         simulateInput(frame);
@@ -143,6 +155,12 @@ public class PlaybackSession implements ParkourSession {
         mc.options.rightKey.setPressed(false);
         mc.options.jumpKey.setPressed(false);
         mc.options.sneakKey.setPressed(false);
+        mc.player.setSneaking(false);
         mc.player.setSprinting(false);
+
+        GameOptions options = MinecraftClient.getInstance().options;
+        OptionsMixin accessor = (OptionsMixin) (Object) options;
+        SimpleOption<Boolean> opt = accessor.getSneakToggled();
+        opt.setValue(sneakToggledBackup);
     }
 }
